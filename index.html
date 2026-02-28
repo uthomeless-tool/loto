@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>64名から5名選出：スピード抽選器</title>
+    <title>抽選器</title>
     <style>
         :root {
             --primary: #2c3e50;
@@ -19,37 +19,45 @@
 
         .input-section { margin-bottom: 20px; }
         label { font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 8px; }
-        textarea { width: 100%; height: 120px; padding: 12px; border: 2px solid #ddd; border-radius: 10px; box-sizing: border-box; resize: vertical; font-size: 0.9rem; }
+        textarea { width: 100%; height: 100px; padding: 12px; border: 2px solid #ddd; border-radius: 10px; box-sizing: border-box; resize: vertical; font-size: 0.9rem; }
         
-        .settings { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
-        input[type="number"] { width: 60px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; text-align: center; }
+        .settings { display: flex; align-items: center; gap: 15px; margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 8px; }
+        input[type="number"] { width: 60px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; text-align: center; font-weight: bold; }
 
         /* スロットエリア */
         .slot-container { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
         .slot-row { 
             display: flex; align-items: center; background: #222; height: 50px; 
-            border-radius: 8px; overflow: hidden; position: relative; border: 2px solid transparent;
+            border-radius: 8px; overflow: hidden; position: relative; border: 2px solid #444;
+            transition: border-color 0.2s;
         }
-        .slot-row.active { border-color: var(--accent); }
-        .slot-row.done { border-color: var(--success); }
-        .slot-label { width: 80px; background: #444; color: #fff; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; }
+        /* 抽選中の枠（オレンジ） */
+        .slot-row.active { border-color: var(--accent); box-shadow: 0 0 10px rgba(230, 126, 34, 0.4); }
+        /* 確定後の枠（緑） */
+        .slot-row.done { border-color: var(--success); background: #1a1a1a; }
+        
+        .slot-label { width: 80px; background: #333; color: #888; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; border-right: 1px solid #444; transition: color 0.2s; }
+        .slot-row.done .slot-label { color: var(--success); }
+
         .slot-viewport { flex-grow: 1; height: 50px; position: relative; overflow: hidden; }
-        .slot-list { position: absolute; width: 100%; top: 0; text-align: center; }
-        .slot-item { height: 50px; line-height: 50px; color: #fff; font-weight: bold; font-size: 1.1rem; }
+        .slot-item { height: 50px; line-height: 50px; color: #fff; font-weight: bold; font-size: 1.1rem; text-align: center; }
+        .empty-text { color: #555; font-style: italic; font-weight: normal; }
 
         /* コントロール */
         .btn-main { 
             width: 100%; padding: 18px; border: none; border-radius: 50px; 
             background: var(--accent); color: white; font-size: 1.2rem; font-weight: bold; 
             cursor: pointer; transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 4px 0 #bc661b;
         }
-        .btn-main:active { transform: scale(0.98); }
-        .btn-main:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-main:hover { background: #cf711f; }
+        .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #bc661b; }
+        .btn-main:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; transform: none; }
 
         /* 結果コピー */
         .result-area { margin-top: 20px; display: none; background: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px dashed #bbb; }
         .result-text { font-weight: bold; text-align: center; white-space: pre-wrap; margin-bottom: 10px; }
-        .btn-copy { width: 100%; padding: 10px; border: none; border-radius: 5px; background: var(--primary); color: white; cursor: pointer; }
+        .btn-copy { width: 100%; padding: 10px; border: none; border-radius: 5px; background: var(--primary); color: white; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -58,17 +66,16 @@
     <h2>🏆 参加者抽選ルーレット</h2>
 
     <div class="input-section">
-        <label>参加者リスト (改行またはカンマ区切り)</label>
+        <label>参加者リスト</label>
         <textarea id="name-list" placeholder="1行に1人ずつ入力してください"></textarea>
         <div class="settings">
             <label>当選人数:</label>
-            <input type="number" id="pick-count" value="5" min="1">
-            <span style="font-size: 0.8rem; color: #666;" id="list-count-info">現在の入力: 0人</span>
+            <input type="number" id="pick-count" value="5" min="1" max="100">
+            <span style="margin-left: auto; font-size: 0.8rem; color: #666;" id="list-count-info">0人入力済み</span>
         </div>
     </div>
 
-    <div id="slot-display" class="slot-container">
-        </div>
+    <div id="slot-display" class="slot-container"></div>
 
     <button id="spin-btn" class="btn-main" onclick="startLottery()">抽選開始！</button>
 
@@ -82,38 +89,44 @@
     const nameInput = document.getElementById('name-list');
     const countInput = document.getElementById('pick-count');
     const infoSpan = document.getElementById('list-count-info');
+    const slotContainer = document.getElementById('slot-display');
     let isSpinning = false;
 
-    // 初期サンプルデータ (64人分)
     const samples = Array.from({length: 64}, (_, i) => `プレイヤー${i + 1}`);
     nameInput.value = samples.join('\n');
 
-    function updateInfo() {
-        const list = getNames();
-        infoSpan.innerText = `現在の入力: ${list.length}人`;
+    function init() {
+        updateInfo();
+        refreshSlots();
+        nameInput.addEventListener('input', updateInfo);
+        countInput.addEventListener('input', refreshSlots);
     }
-    nameInput.addEventListener('input', updateInfo);
-    updateInfo();
 
     function getNames() {
         return nameInput.value.split(/[、,\n]/).map(s => s.trim()).filter(s => s !== "");
     }
 
-    function createSlots(count) {
-        const container = document.getElementById('slot-display');
-        container.innerHTML = '';
+    function updateInfo() {
+        const list = getNames();
+        infoSpan.innerText = `${list.length}人入力済み`;
+    }
+
+    // 枠の状態を初期化する（白文字・待機中に戻す）
+    function refreshSlots() {
+        if (isSpinning) return;
+        const count = parseInt(countInput.value) || 0;
+        slotContainer.innerHTML = '';
         for (let i = 0; i < count; i++) {
-            container.innerHTML += `
+            slotContainer.innerHTML += `
                 <div class="slot-row" id="row-${i}">
                     <div class="slot-label">当選 ${i+1}</div>
                     <div class="slot-viewport">
-                        <div class="slot-list" id="list-${i}">
-                            <div class="slot-item">???</div>
-                        </div>
+                        <div class="slot-item empty-text" id="list-${i}" style="color: #fff">待機中...</div>
                     </div>
                 </div>
             `;
         }
+        document.getElementById('result-wrapper').style.display = 'none';
     }
 
     async function startLottery() {
@@ -123,30 +136,38 @@
         const pickNum = parseInt(countInput.value);
 
         if (allNames.length < pickNum) {
-            alert("参加者が足りません！");
+            alert(`参加者が足りません！（現在${allNames.length}名 / 必要${pickNum}名）`);
             return;
         }
 
         isSpinning = true;
         document.getElementById('spin-btn').disabled = true;
         document.getElementById('result-wrapper').style.display = 'none';
-        createSlots(pickNum);
+        
+        // 【修正箇所】抽選開始時に、全スロットを一旦「白文字の回転状態」にリセット
+        for (let i = 0; i < pickNum; i++) {
+            const rowEl = document.getElementById(`row-${i}`);
+            const listEl = document.getElementById(`list-${i}`);
+            if (rowEl && listEl) {
+                rowEl.classList.remove('done');
+                rowEl.classList.add('active');
+                listEl.classList.remove('empty-text');
+                listEl.style.color = "#fff"; // 文字色を白に戻す
+                listEl.innerText = "抽選中...";
+            }
+        }
 
-        // シャッフルして当選者を決定
         const shuffled = [...allNames].sort(() => Math.random() - 0.5);
         const winners = shuffled.slice(0, pickNum);
 
-        // 各スロットの演出
         const promises = [];
         for (let i = 0; i < pickNum; i++) {
             promises.push(animateSlot(i, winners[i], allNames));
-            // 少しずつずらして開始（階段状の演出）
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 150)); 
         }
 
         await Promise.all(promises);
         
-        // 結果表示
         showFinalResult(winners);
         isSpinning = false;
         document.getElementById('spin-btn').disabled = false;
@@ -156,41 +177,42 @@
         return new Promise(resolve => {
             const listEl = document.getElementById(`list-${idx}`);
             const rowEl = document.getElementById(`row-${idx}`);
-            rowEl.classList.add('active');
 
             let count = 0;
-            const maxCycles = 15 + (idx * 5); // 後ろのスロットほど長く回る
+            const duration = 20 + (idx * 8); 
             
             const interval = setInterval(() => {
                 const randomName = allNames[Math.floor(Math.random() * allNames.length)];
-                listEl.innerHTML = `<div class="slot-item">${randomName}</div>`;
+                listEl.innerText = randomName;
                 
                 count++;
-                if (count > maxCycles) {
+                if (count > duration) {
                     clearInterval(interval);
-                    listEl.innerHTML = `<div class="slot-item" style="color:#2ecc71">${finalName}</div>`;
+                    listEl.innerText = finalName;
+                    listEl.style.color = "#2ecc71"; // 確定時のみ緑にする
                     rowEl.classList.remove('active');
                     rowEl.classList.add('done');
                     resolve();
                 }
-            }, 50);
+            }, 60);
         });
     }
 
     function showFinalResult(winners) {
         const wrapper = document.getElementById('result-wrapper');
         const textEl = document.getElementById('result-text');
-        const resultStr = "【抽選結果】\n" + winners.join(' / ');
-        textEl.innerText = resultStr;
+        textEl.innerText = "【抽選結果】\n" + winners.join(' / ');
         wrapper.style.display = 'block';
     }
 
     function copyResult() {
         const text = document.getElementById('result-text').innerText;
         navigator.clipboard.writeText(text).then(() => {
-            alert("コピーしました！");
+            alert("結果をコピーしました！");
         });
     }
+
+    init();
 </script>
 
 </body>
