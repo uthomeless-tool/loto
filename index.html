@@ -92,7 +92,16 @@
     const slotContainer = document.getElementById('slot-display');
     let isSpinning = false;
 
-    const samples = Array.from({length: 64}, (_, i) => `プレイヤー${i + 1}`);
+    const samples = [
+        "LVH / rikka", "MingiGod", "マグたん", "Wave | 怒王", "ゆうちょ/ASL", "y(@Bonr1979)", "salty", "漆黒",
+        "アレクサンダー", "ろと", "うがい", "中田", "Mizo.", "ぽこぽこた", "アルカンシェル", "シドニー",
+        "なおき@オタクDMP", "るぴあ", "ttt", "いろは", "キャリー", "ぼーいん", "ただのメガネ", "ねむる",
+        "すー", "レレパ", "y(@yogu3645)", "あ", "桐藤ナギサ", "Winter", "imagin", "canon", "rainy lady", "あんかけ",
+        "ららら", "うみね", "たくうま", "miffy_kotone", "白根洸", "siro", "シン", "はまじむさし",
+        "エアーマン@Vtuber", "ずいずい瑞鶴", "ろた", "みなぷ", "あの人のお寿司", "すかいぃぃ", "いぐにす",
+        "ぴえ", "Sakii", "kibel", "hamachan", "虚無ちん", "orca", "α", "ソウタ", "卍x琴乃葉雪乃x卍",
+        "なみちゃ", "えくれあ", "安藤", "竜王", "とある", "たんぼ"
+    ];
     nameInput.value = samples.join('\n');
 
     function init() {
